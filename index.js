@@ -54,6 +54,17 @@ async function run() {
     });
 
 
+    app.patch("/destinations/:id", async (req, res) => {
+      const {id} = req.params;
+      const updateData = req.body;
+
+      const result = await destinationCollection.updateOne(
+        {_id: new ObjectId(id)},
+        {$set: updateData}
+      )
+
+      res.json(result);
+    });
 
     
     await client.db("admin").command({ ping: 1 });
