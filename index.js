@@ -29,6 +29,11 @@ async function run() {
     const db = client.db("goglobe-server")
     const destinationCollection = db.collection("destinations");
 
+    app.get('/destinations', async (req, res) => {
+          const result =await destinationCollection.find().toArray()
+          res.json(result);
+    });
+
 
     app.post('/destinations', async (req, res) => {
           const destination = req.body;
