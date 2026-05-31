@@ -45,8 +45,17 @@ async function run() {
 
     });
 
-
-    app.get("/destinations/:id", async (req, res) => {
+//middleware
+    app.get("/destinations/:id",(req,res,next)=>{
+      const header = req.headers.authorization;
+      if(header==="loggedIn")
+      {        next();
+      }
+      else{
+        res.status(401).json({message:"Unauthorized"});
+      }
+    }
+      , async (req, res) => {
       const {id} = req.params;
 
       const result = await destinationCollection.findOne({ _id: new ObjectId(id)});
