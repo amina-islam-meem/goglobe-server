@@ -28,6 +28,7 @@ async function run() {
 
     const db = client.db("goglobe-server")
     const destinationCollection = db.collection("destinations");
+    const bookingCollection = db.collection("bookings");
 
     app.get('/destinations', async (req, res) => {
           const result =await destinationCollection.find().toArray()
@@ -71,6 +72,12 @@ async function run() {
       const {id} = req.params;
       const result = await destinationCollection.deleteOne({_id: new ObjectId(id)});
       res.json(result);
+    });
+
+    app.post('/bookings', async (req, res) => {
+      const booking = req.body;
+      const result = await bookingCollection.insertOne(booking);
+       res.json(result);
     });
 
     
