@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 
 const { MongoClient, ServerApiVersion,ObjectId } = require('mongodb');
+const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
 dotenv.config();
 const uri =process.env.MONGODB_URI;
 
@@ -22,18 +23,49 @@ const client = new MongoClient(uri, {
   }
 });
 
+
+const JWKS = createRemoteJWKSet(new URL(`${process.env.CLIENT_URL}/api/auth/jwks`));
+
+
+const verifyToken =async (req, res, next) => {
+  const authHeader = req?.headers.authorization;
+   if (!authHeader) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWKS);
+    req.user = payload;
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+};
+
 async function run() {
   try {
-    await client.connect();
+    //await client.connect();
 
     const db = client.db("goglobe-server")
     const destinationCollection = db.collection("destinations");
     const bookingCollection = db.collection("bookings");
 
+
+     app.get("/featured", async (req, res) => {
+      const result = await destinationCollection.find().limit(4).toArray()
+      res.json(result)
+    })
+
     app.get('/destinations', async (req, res) => {
           const result =await destinationCollection.find().toArray()
           res.json(result);
     });
+
+    
 
 
     app.post('/destinations', async (req, res) => {
@@ -46,16 +78,7 @@ async function run() {
     });
 
 //middleware
-    app.get("/destinations/:id",(req,res,next)=>{
-      const header = req.headers.authorization;
-      if(header==="loggedIn")
-      {        next();
-      }
-      else{
-        res.status(401).json({message:"Unauthorized"});
-      }
-    }
-      , async (req, res) => {
+    app.get("/destinations/:id",verifyToken, async (req, res) => {
       const {id} = req.params;
 
       const result = await destinationCollection.findOne({ _id: new ObjectId(id)});
@@ -71,7 +94,7 @@ async function run() {
       const result = await destinationCollection.updateOne(
         {_id: new ObjectId(id)},
         {$set: updateData}
-      )
+      );
 
       res.json(result);
     });
@@ -83,7 +106,7 @@ async function run() {
       res.json(result);
     });
 
-    app.get("/bookings/:userId", async (req, res) => {
+    app.get("/bookings/:userId", verifyToken,async (req, res) => {
       const {userId} = req.params;
       const result = await bookingCollection.find({userId}).toArray();
       res.json(result);
@@ -91,24 +114,23 @@ async function run() {
 
 
 
-    app.post('/bookings', async (req, res) => {
+    app.post('/bookings',verifyToken, async (req, res) => {
       const booking = req.body;
       const result = await bookingCollection.insertOne(booking);
        res.json(result);
     });
 
 
-    app.delete("/bookings/:bookingId", async (req, res) => {
+    app.delete("/bookings/:bookingId",verifyToken, async (req, res) => {
       const {bookingId} = req.params;
       const result = await bookingCollection.deleteOne({_id: new ObjectId(bookingId)});
       res.json(result);
     });
 
     
-    await client.db("admin").command({ ping: 1 });
+    //await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } catch (error) {
-    console.error(error);
+  } finally {
   }
   
 }
